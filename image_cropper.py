@@ -1,8 +1,7 @@
 import sys
 import os
 import tkinter as tk
-from tkinter import filedialog
-from PIL import Image, ImageTk, ImageOps
+from PIL import Image, ImageTk
 
 class ImageCropper:
     def __init__(self, master, image_files):
