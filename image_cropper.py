@@ -14,13 +14,17 @@ class ImageCropper:
         self.filename_label = tk.Label(self.master)
         self.filename_label.pack()
 
-        prev_button = tk.Button(self.master, text="<", command=self.prev_image)
-        prev_button.pack(side="left")
-        next_button = tk.Button(self.master, text=">", command=self.next_image)
-        next_button.pack(side="left")
+        button_frame = tk.Frame(self.master)
+        button_frame.pack(side="bottom", fill="x")
+
+        prev_button = tk.Button(button_frame, text="<", command=self.prev_image)
+        prev_button.pack(side="left", fill="x", expand=True)
+        next_button = tk.Button(button_frame, text=">", command=self.next_image)
+        next_button.pack(side="left", fill="x", expand=True)
 
         self.canvas = tk.Canvas(self.master, width=self.image.width, height=self.image.height)
         self.canvas.pack()
+
         self.canvas.create_image(0, 0, anchor="nw", image=self.photo)
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_button_drag)
@@ -60,29 +64,47 @@ class ImageCropper:
 
     def on_button_drag(self, event):
         self.canvas.coords(self.rect, self.start_x, self.start_y, event.x, event.y)
+        width = abs(event.x - self.start_x)
+        height = abs(event.y - self.start_y)
+        self.filename_label.config(text=f"{os.path.basename(self.filepath)} ({width}x{height})")
 
     def on_button_release(self, event):
-        cropped_image = self.image.crop((self.start_x, self.start_y, event.x, event.y))
-        self.show_cropped_image(cropped_image)
+        x1, y1, x2, y2 = min(self.start_x, event.x), min(self.start_y, event.y), max(self.start_x, event.x), max(self.start_y, event.y)
+
+        if x1 != x2 and y1 != y2:
+            cropped_image = self.image.crop((x1, y1, x2, y2))
+            self.show_cropped_image(cropped_image)
+
+    def clear_bounding_box(self):
+        if self.rect:
+            self.canvas.delete(self.rect)
+            self.rect = None
+
+    def save_cropped_image(self, cropped_image):
+        cropped_image.save(self.filepath)
+        self.load_image()
+        self.update_image()
+        self.top.destroy()
 
     def show_cropped_image(self, cropped_image):
-        top = tk.Toplevel()
-        label = tk.Label(top)
+        self.top = tk.Toplevel()
+        self.top.protocol("WM_DELETE_WINDOW", self.clear_bounding_box_and_close)
+
+        label = tk.Label(self.top)
         label.pack()
         photo = ImageTk.PhotoImage(cropped_image)
         label.config(image=photo)
         label.image = photo
 
-        save_button = tk.Button(top, text="Save", command=lambda: self.save_cropped_image(cropped_image))
+        save_button = tk.Button(self.top, text="Save", command=lambda: self.save_cropped_image(cropped_image))
         save_button.pack()
-        discard_button = tk.Button(top, text="Discard", command=top.destroy)
+        discard_button = tk.Button(self.top, text="Discard", command=self.clear_bounding_box_and_close)
         discard_button.pack()
 
-    def save_cropped_image(self, cropped_image):
-        save_path = filedialog.asksaveasfilename(defaultextension=".png")
-        if save_path:
-            cropped_image.save(save_path)
-
+    def clear_bounding_box_and_close(self):
+        self.clear_bounding_box()
+        self.top.destroy()
+        
 def main():
     if len(sys.argv) < 2:
         print("Usage: python image_cropper.py <image_directory>")
