@@ -21,6 +21,8 @@ class ImageCropper:
         next_button = tk.Button(button_frame, text=">", command=self.next_image)
         next_button.pack(side="left", fill="x", expand=True)
 
+        delete_button = tk.Button(button_frame, text="Delete", command=self.delete_image)
+        delete_button.pack(side="bottom", fill="x")
         self.canvas = tk.Canvas(self.master, width=self.image.width, height=self.image.height)
         self.canvas.pack()
 
@@ -103,7 +105,19 @@ class ImageCropper:
     def clear_bounding_box_and_close(self):
         self.clear_bounding_box()
         self.top.destroy()
-        
+
+    def delete_image(self):
+        os.remove(self.filepath)
+        self.image_files.remove(self.filepath)
+
+        if not self.image_files:
+            print("No more image files in the directory.")
+            self.master.quit()
+            return
+
+        self.current_image_index %= len(self.image_files)
+        self.update_image()
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python image_cropper.py <image_directory>")
