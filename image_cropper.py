@@ -1,13 +1,15 @@
+import argparse
 import sys
 import os
 import tkinter as tk
 from PIL import Image, ImageTk
 
 class ImageCropper:
-    def __init__(self, master, image_files):
+    def __init__(self, master, image_files, confirm):
         self.master = master
         self.image_files = image_files
         self.current_image_index = 0
+        self.confirm = confirm
         self.load_image()
 
         self.filename_label = tk.Label(self.master)
@@ -30,6 +32,10 @@ class ImageCropper:
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_button_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
+        self.canvas.bind("<ButtonRelease-3>", self.on_button_release_noop)
+
+        self.master.bind("<Left>", self.prev_image)
+        self.master.bind("<Right>", self.next_image)
 
         self.rect = None
         self.start_x = None
@@ -40,11 +46,11 @@ class ImageCropper:
         self.image = Image.open(self.filepath)
         self.photo = ImageTk.PhotoImage(self.image)
 
-    def prev_image(self):
+    def prev_image(self, event=None):
         self.current_image_index = (self.current_image_index - 1) % len(self.image_files)
         self.update_image()
 
-    def next_image(self):
+    def next_image(self, event=None):
         self.current_image_index = (self.current_image_index + 1) % len(self.image_files)
         self.update_image()
 
@@ -70,11 +76,25 @@ class ImageCropper:
         self.filename_label.config(text=f"{os.path.basename(self.filepath)} ({width}x{height})")
 
     def on_button_release(self, event):
+        if not self.start_x or not self.start_y:
+            return
+
         x1, y1, x2, y2 = min(self.start_x, event.x), min(self.start_y, event.y), max(self.start_x, event.x), max(self.start_y, event.y)
 
         if x1 != x2 and y1 != y2:
             cropped_image = self.image.crop((x1, y1, x2, y2))
-            self.show_cropped_image(cropped_image)
+            if self.confirm:
+                self.show_cropped_image(cropped_image)
+            else:
+                # save without confirmation
+                name = os.path.basename(self.filepath)
+                new_name = f'cropped_{x1}_{y1}-{x2}_{y2}_{name}'
+                cropped_image.save(os.path.join(os.path.dirname(self.filepath), new_name))
+
+    def on_button_release_noop(self, event):
+        self.start_x = None
+        self.start_y = None
+        self.clear_bounding_box()
 
     def clear_bounding_box(self):
         if self.rect:
@@ -119,11 +139,13 @@ class ImageCropper:
         self.update_image()
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python image_cropper.py <image_directory>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Image Cropper")
+    parser.add_argument("image_directory", type=str, help="path to the directory containing image files")
+    parser.add_argument("--no-confirm", action="store_true", help="save images without confirmation")
+    args = parser.parse_args()
 
-    image_directory = sys.argv[1]
+    image_directory = args.image_directory
+    confirm = not args.no_confirm
 
     image_files = [
         os.path.join(image_directory, f)
@@ -137,7 +159,7 @@ def main():
 
     root = tk.Tk()
     root.title("Image Cropper")
-    app = ImageCropper(root, image_files)
+    app = ImageCropper(root, image_files, confirm)
     root.mainloop()
 
 if __name__ == "__main__":
