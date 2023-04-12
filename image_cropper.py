@@ -5,6 +5,9 @@ import tkinter as tk
 from PIL import Image, ImageTk
 
 class ImageCropper:
+
+    LIMIT_PX = 1000
+
     def __init__(self, master, image_files, confirm):
         self.master = master
         self.image_files = image_files
@@ -44,6 +47,16 @@ class ImageCropper:
     def load_image(self):
         self.filepath = self.image_files[self.current_image_index]
         self.image = Image.open(self.filepath)
+        self.image_orig = self.image.copy()
+
+        # Scale the image if its width or height is larger than LIMIT_PX
+        if self.image.width > self.LIMIT_PX or self.image.height > self.LIMIT_PX:
+            largest_dimension = max(self.image.width, self.image.height)
+            self.scale = 1000 / largest_dimension
+            new_width = int(self.image.width * self.scale)
+            new_height = int(self.image.height * self.scale)
+            self.image = self.image.resize((new_width, new_height), Image.BICUBIC)
+
         self.photo = ImageTk.PhotoImage(self.image)
 
     def prev_image(self, event=None):
@@ -58,7 +71,7 @@ class ImageCropper:
         self.load_image()
         self.canvas.config(width=self.image.width, height=self.image.height)
         self.canvas.create_image(0, 0, anchor="nw", image=self.photo)
-        self.filename_label.config(text=os.path.basename(self.filepath))
+        self.filename_label.config(text=os.path.basename(self.filepath)[:64])
 
     def on_button_press(self, event):
         self.start_x = event.x
@@ -73,7 +86,7 @@ class ImageCropper:
         self.canvas.coords(self.rect, self.start_x, self.start_y, event.x, event.y)
         width = abs(event.x - self.start_x)
         height = abs(event.y - self.start_y)
-        self.filename_label.config(text=f"{os.path.basename(self.filepath)} ({width}x{height})")
+        self.filename_label.config(text=f"{os.path.basename(self.filepath)[:64]} ({width}x{height})")
 
     def on_button_release(self, event):
         if not self.start_x or not self.start_y:
@@ -81,8 +94,13 @@ class ImageCropper:
 
         x1, y1, x2, y2 = min(self.start_x, event.x), min(self.start_y, event.y), max(self.start_x, event.x), max(self.start_y, event.y)
 
+        x1 = int(x1 / self.scale)
+        y1 = int(y1 / self.scale)
+        x2 = int(x2 / self.scale)
+        y2 = int(y2 / self.scale)
+
         if x1 != x2 and y1 != y2:
-            cropped_image = self.image.crop((x1, y1, x2, y2))
+            cropped_image = self.image_orig.crop((x1, y1, x2, y2))
             if self.confirm:
                 self.show_cropped_image(cropped_image)
             else:
