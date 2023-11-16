@@ -39,6 +39,10 @@ class ImageCropper:
 
         self.master.bind("<Left>", self.prev_image)
         self.master.bind("<Right>", self.next_image)
+        
+        self.master.bind("s", self.prev_image)
+        self.master.bind("f", self.next_image)
+        self.master.bind("d", self.delete_image)
 
         self.rect = None
         self.start_x = None
@@ -56,6 +60,8 @@ class ImageCropper:
             new_width = int(self.image.width * self.scale)
             new_height = int(self.image.height * self.scale)
             self.image = self.image.resize((new_width, new_height), Image.BICUBIC)
+        else:
+            self.scale = 1
 
         self.photo = ImageTk.PhotoImage(self.image)
 
@@ -101,7 +107,7 @@ class ImageCropper:
 
         if x1 != x2 and y1 != y2:
             cropped_image = self.image_orig.crop((x1, y1, x2, y2))
-            if self.confirm:
+            if not self.confirm:
                 self.show_cropped_image(cropped_image)
             else:
                 # save without confirmation
@@ -144,7 +150,7 @@ class ImageCropper:
         self.clear_bounding_box()
         self.top.destroy()
 
-    def delete_image(self):
+    def delete_image(self, event=None):
         os.remove(self.filepath)
         self.image_files.remove(self.filepath)
 
@@ -159,11 +165,11 @@ class ImageCropper:
 def main():
     parser = argparse.ArgumentParser(description="Image Cropper")
     parser.add_argument("image_directory", type=str, help="path to the directory containing image files")
-    parser.add_argument("--no-confirm", action="store_true", help="save images without confirmation")
+    parser.add_argument("--confirm", action="store_true", help="save images without confirmation")
     args = parser.parse_args()
 
     image_directory = args.image_directory
-    confirm = not args.no_confirm
+    confirm = not args.confirm
 
     image_files = [
         os.path.join(image_directory, f)
